@@ -1,20 +1,32 @@
 package cuchaz.enigma;
 
 import java.io.BufferedWriter;
+import java.io.ByteArrayOutputStream;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.jar.JarEntry;
+import java.util.jar.JarInputStream;
 import java.util.jar.JarOutputStream;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
+import java.util.zip.ZipInputStream;
 
 import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
@@ -221,10 +233,44 @@ public class EnigmaProject {
 	public static final class JarExport {
 		private final EntryRemapper mapper;
 		private final Map<String, ClassNode> compiled;
+		private final Map<String, ByteArrayOutputStream> resources = new HashMap<>();
 
 		JarExport(EntryRemapper mapper, Map<String, ClassNode> compiled) {
 			this.mapper = mapper;
 			this.compiled = compiled;
+		}
+
+		private static ByteArrayOutputStream streamReadAllBytes(InputStream stream) {
+			ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+			int nRead;
+			byte[] data = new byte[4096];
+			try {
+				while ((nRead = stream.read(data, 0, data.length)) != -1) {
+					buffer.write(data, 0, nRead);
+				}
+			} catch (IOException e) {
+				e.printStackTrace();
+				return buffer;
+			}
+			return buffer;
+		}
+
+		public void appendResources(Path fileJarIn) throws IOException {
+			ZipFile file = new ZipFile(fileJarIn.toFile());
+			Enumeration<? extends ZipEntry> entries = file.entries();
+
+			while (entries.hasMoreElements()) {
+				ZipEntry e = entries.nextElement();
+				if (e.isDirectory()) {
+					continue;
+				}
+				if (e.getName().endsWith(".class")) {
+					continue;
+				}
+				try (InputStream iStream = file.getInputStream(e)) {
+					resources.put(e.getName(), streamReadAllBytes(iStream));
+				}
+			}
 		}
 
 		public void write(Path path, ProgressListener progress) throws IOException {
@@ -243,6 +289,13 @@ public class EnigmaProject {
 
 					out.putNextEntry(new JarEntry(entryName));
 					out.write(writer.toByteArray());
+					out.closeEntry();
+				}
+
+				for (Map.Entry<String, ByteArrayOutputStream> entry : resources.entrySet()) {
+					progress.step(count.getAndIncrement(), entry.getKey());
+					out.putNextEntry(new JarEntry(entry.getKey()));
+					out.write(entry.getValue().toByteArray());
 					out.closeEntry();
 				}
 			}

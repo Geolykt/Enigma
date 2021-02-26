@@ -38,6 +38,8 @@ public class JarIndex implements JarIndexer {
 	private final Multimap<String, MethodDefEntry> methodImplementations = HashMultimap.create();
 	private final ListMultimap<ClassEntry, ParentedEntry> childrenByClass;
 
+	public static boolean indexBridgemethods = false;
+
 	public JarIndex(EntryIndex entryIndex, InheritanceIndex inheritanceIndex, ReferenceIndex referenceIndex, BridgeMethodIndex bridgeMethodIndex, PackageVisibilityIndex packageVisibilityIndex) {
 		this.entryIndex = entryIndex;
 		this.inheritanceIndex = inheritanceIndex;
@@ -58,7 +60,7 @@ public class JarIndex implements JarIndexer {
 		return new JarIndex(entryIndex, inheritanceIndex, referenceIndex, bridgeMethodIndex, packageVisibilityIndex);
 	}
 
-	public void indexJar(Set<String> classNames, ClassProvider classProvider, ProgressListener progress) {
+	public void indexJar(Set<String> classNames, ClassProvider classProvider, ProgressListener progress, boolean indexBridges) {
 		indexedClasses.addAll(classNames);
 		progress.init(4, I18n.translate("progress.jar.indexing"));
 
@@ -75,10 +77,17 @@ public class JarIndex implements JarIndexer {
 		}
 
 		progress.step(3, I18n.translate("progress.jar.indexing.methods"));
-		bridgeMethodIndex.findBridgeMethods();
+		if (indexBridges) {
+			bridgeMethodIndex.findBridgeMethods();
+		}
 
 		progress.step(4, I18n.translate("progress.jar.indexing.process"));
 		processIndex(this);
+	}
+
+	@Deprecated
+	public void indexJar(Set<String> classNames, ClassProvider classProvider, ProgressListener progress) {
+		indexJar(classNames, classProvider, progress, indexBridgemethods);
 	}
 
 	@Override

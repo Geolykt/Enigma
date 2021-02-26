@@ -2,6 +2,7 @@ package cuchaz.enigma.command;
 
 import cuchaz.enigma.EnigmaProject;
 import cuchaz.enigma.ProgressListener;
+import cuchaz.enigma.analysis.index.JarIndex;
 
 import java.nio.file.Path;
 
@@ -13,7 +14,7 @@ public class DeobfuscateCommand extends Command {
 
 	@Override
 	public String getUsage() {
-		return "<in jar> <out jar> [<mappings file>]";
+		return "<in jar> <out jar> [<mappings file>] [--index-bridges]";
 	}
 
 	@Override
@@ -26,12 +27,14 @@ public class DeobfuscateCommand extends Command {
 		Path fileJarIn = getReadablePath(getArg(args, 0, "in jar", true));
 		Path fileJarOut = getWritableFile(getArg(args, 1, "out jar", true)).toPath();
 		Path fileMappings = getReadablePath(getArg(args, 2, "mappings file", false));
+		JarIndex.indexBridgemethods = getArg(args, 3, "--index-bridges", false) != null;
 
 		EnigmaProject project = openProject(fileJarIn, fileMappings);
 
 		ProgressListener progress = new ConsoleProgressListener();
 
 		EnigmaProject.JarExport jar = project.exportRemappedJar(progress);
+		jar.appendResources(fileJarIn);
 		jar.write(fileJarOut, progress);
 	}
 }

@@ -45,6 +45,7 @@ public class Main {
 				throw new CommandHelpException(cmd, ex);
 			}
 		} catch (CommandHelpException ex) {
+			ex.printStackTrace();
 			System.err.println(ex.getMessage());
 			System.out.println(String.format("%s - %s", Enigma.NAME, Enigma.VERSION));
 			System.out.println("Command " + ex.command.name + " has encountered an error! Usage:");
