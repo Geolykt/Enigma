@@ -8,7 +8,7 @@ import cuchaz.enigma.translation.representation.entry.Entry;
 
 public interface EditorActionListener {
 
-	default void onCursorReferenceChanged(EditorPanel editor, EntryReference<Entry<?>, Entry<?>> ref) {
+	default public void onCursorReferenceChanged(EditorPanel editor, EntryReference<Entry<?>, Entry<?>> ref) {
 	}
 
 	default void onClassHandleChanged(EditorPanel editor, ClassEntry old, ClassHandle ch) {

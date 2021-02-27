@@ -11,6 +11,7 @@ import javax.swing.JPanel;
 import javax.swing.text.Document;
 
 import cuchaz.enigma.gui.events.ConvertingTextFieldListener;
+import cuchaz.enigma.gui.events.ConvertingTextFieldListener.StopEditingCause;
 import cuchaz.enigma.gui.util.GuiUtil;
 import cuchaz.enigma.utils.validation.ParameterizedMessage;
 import cuchaz.enigma.utils.validation.Validatable;
@@ -31,6 +32,7 @@ public class ConvertingTextField implements Validatable {
 		this.ui = new JPanel();
 		this.ui.setLayout(new GridLayout(1, 1, 0, 0));
 		this.textField = new ValidatableTextField(text);
+		this.textField.setFocusTraversalKeysEnabled(false);
 		this.label = GuiUtil.unboldLabel(new JLabel(text));
 		this.label.setBorder(BorderFactory.createLoweredBevelBorder());
 
@@ -45,18 +47,27 @@ public class ConvertingTextField implements Validatable {
 			@Override
 			public void focusLost(FocusEvent e) {
 				if (!hasChanges()) {
-					stopEditing(true);
+					stopEditing(StopEditingCause.ABORT);
 				}
 			}
 		});
 
 		this.textField.addKeyListener(new KeyAdapter() {
+			
 			@Override
 			public void keyPressed(KeyEvent e) {
-				if (e.getKeyCode() == KeyEvent.VK_ESCAPE) {
-					stopEditing(true);
-				} else if (e.getKeyCode() == KeyEvent.VK_ENTER) {
-					stopEditing(false);
+				switch (e.getKeyCode()) {
+				case KeyEvent.VK_ESCAPE:
+					stopEditing(StopEditingCause.ABORT);
+					break;
+				case KeyEvent.VK_ENTER:
+					stopEditing(StopEditingCause.DO);
+					break;
+				case KeyEvent.VK_TAB:
+					stopEditing(StopEditingCause.TAB);
+					break;
+				default:
+					break;
 				}
 			}
 		});
@@ -76,12 +87,12 @@ public class ConvertingTextField implements Validatable {
 		this.listeners.forEach(l -> l.onStartEditing(this));
 	}
 
-	public void stopEditing(boolean abort) {
+	public void stopEditing(ConvertingTextFieldListener.StopEditingCause cause) {
 		if (!isEditing) return;
 
-		if (!listeners.stream().allMatch(l -> l.tryStopEditing(this, abort))) return;
+		if (!listeners.stream().allMatch(l -> l.tryStopEditing(this, cause))) return;
 
-		if (abort) {
+		if (cause == StopEditingCause.ABORT) {
 			this.textField.setText(this.label.getText());
 		} else {
 			this.label.setText(this.textField.getText());
@@ -92,11 +103,11 @@ public class ConvertingTextField implements Validatable {
 		this.isEditing = false;
 		this.ui.validate();
 		this.ui.repaint();
-		this.listeners.forEach(l -> l.onStopEditing(this, abort));
+		this.listeners.forEach(l -> l.onStopEditing(this, cause));
 	}
 
 	public void setText(String text) {
-		stopEditing(true);
+		stopEditing(StopEditingCause.ABORT);
 		this.label.setText(text);
 		this.textField.setText(text);
 	}
